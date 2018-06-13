@@ -64,16 +64,46 @@
 #include <QProgressDialog>
 #include <QListView>
 
-MultiResult::MultiResult(QString name, bool status) {
-    name_ = name;
-    status_ = status;
+#include "icons/execute.xpm"
+#include "icons/clock.xpm"
+
+MultiResult::MultiResult() {
+    name_ = QString("");
+    status_ = false;
+    creation_time_ = std::chrono::high_resolution_clock::now();
 }
 
-QString& MultiResult::getName() {
+std::chrono::high_resolution_clock MultiResult::getCreationTime() {
+    return creation_time_;
+}
+
+void MultiResult::resetCreationTime() {
+    creation_time_ = std::chrono::high_resolution_clock::now();
+}
+
+QString MultiResult::getName() const {
     return name_;
 }
 
-MultiResultListModel::MultiResultListModel(const std::vector<MultiResult*>& results, QObject *parent) : QAbstractListModel(parent) {
+void MultiResult::setName(QString name) {
+    name_ = name;
+}
+
+bool MultiResult::isDone() const {
+    return status_;
+}
+
+void MultiResult::setStatusDone() {
+    status_ = true;
+}
+
+void MultiResult::setStatusExecuting() {
+    status_ = false;
+}
+
+std::map<int, MultiResult> toMultiResultList::resultSet_;
+
+MultiResultListModel::MultiResultListModel(const std::vector<MultiResult>& results, QObject *parent) : QAbstractListModel(parent) {
     results_ = results;
 }
 
@@ -83,30 +113,93 @@ int MultiResultListModel::rowCount(const QModelIndex& parent) const {
 
 QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
     // Check that the index is valid and within the correct range first:
-    if (!index.isValid()) return QVariant();
-    if (index.row() >= decks_.size()) return QVariant();
+    if(!index.isValid()) return QVariant();
+    //if (index.row() >= decks_.size()) return QVariant();
 
-    if (role == Qt::DisplayRole) {
+    if(role == Qt::DisplayRole) {
         // Only returns something for the roles you support (DisplayRole is a minimum)
         // Here we assume that the "MultiResult" class has a "lastName" method but of course any string can be returned
-        return QVariant(results_.at(index.row())->getName());
+        QString label = results_.at(index.row()).getName();
+        
+        if(results_.at(index.row()).isDone()) {
+           auto now = std::chrono::high_resolution_clock::now();
+           label +=
+             std::string(" - Ready (started ")
+             + std::to_string(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(now - results_.at(index.row()).getCreationTime()).count()
+                / 1000
+             )
+             + " ms ago)";
+        } else {
+           label += " - Running ";
+        }
+        
+        return QVariant(label);
+    } else if(role == Qt::DecorationRole) {
+        if(results_.at(index.row()).isDone()) {
+            return QPixmap(const_cast<const char**>(execute_xpm));
+        }
+        return QPixmap(const_cast<const char**>(clock_xpm));
     } else {
-    return QVariant();	
+        return QVariant();
     }
 }
 
-toMultiResultTableView::toMultiResultTableView(QWidget *parent = nullptr) : QListView(parent) {
+toMultiResultList::toMultiResultList(QWidget *parent) : QListView(parent) {
     
-    std::vector<MultiResult*> results;
-    
-    MultiResult result1 = new MultiResult(QString("Query execution 1"), true);
-    MultiResult result2 = new MultiResult(QString("Query execution 2"), true);
-    MultiResult result3 = new MultiResult(QString("Query execution 3"), false);
+    std::vector<MultiResult> results;
+    MultiResultListModel* model = new MultiResultListModel(results);
+    setModel(model);
+}
 
-    results.push_back(result1);
-    results.push_back(result2);
-    results.push_back(result3);
+void toMultiResultList::updateStatus(int id, MultiResult result) {
+    
+    if(resultset_[id] != result) {
+        result.resetCreationTime();
+        resultSet_[id] = result;
+    }
+    
+    std::vector<MultiResult> results;
+    for(std::pair<int, MultiResult> result : resultSet_) {
+       MultiResult mr = result.second;
+       results.push_back(mr);
+    }
     
     MultiResultListModel* model = new MultiResultListModel(results);
     setModel(model);
+}
+
+void toMultiResultList::clearStatus() {
+    resultSet_.clear();
+    std::vector<MultiResult> results;
+    MultiResultListModel* model = new MultiResultListModel(results);
+    setModel(model);
+}
+
+
+toMultiResultTableView::toMultiResultTableView(QWidget *parent) : QVBoxLayout(parent) {
+    QMenuBar* menuBar = new QMenuBar;
+
+    quickOptionsMenu = new QMenu(tr("&Quick options"), this);
+    
+    clearAction = quickOptionsMenu->addAction(tr("&Clear"));
+    connect(clearAction, SIGNAL(triggered()), this, SLOT(slotClearAction()));
+    
+    menuBar->addMenu(quickOptionsMenu);
+    setMenuBar(menuBar);
+    
+    list = new toMultiResultList(this);
+    addWidget(list);
+}
+
+void toMultiResultTableView::slotClearAction(void) {
+    clearStatus();
+}
+
+void toMultiResultTableView::updateStatus(int id, MultiResult result) {
+    list->updateStatus(id, result);
+}
+
+void toMultiResultTableView::clearStatus() {
+    list->clearStatus();
 }

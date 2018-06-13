@@ -209,6 +209,10 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
 
         void focusInEvent(QFocusEvent *e) override;
         void focusOutEvent(QFocusEvent *e) override;
+        
+        QString getCaption(void);
+
+        static toMultiResultTableView *MultiResultView;
 
         // Overridden from toContextMenuHandler
         void handle(QObject *obj, QMenu *menu) override;
@@ -230,7 +234,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         QString duration(int, bool hundreds = true);
         void saveHistory(void);
         void viewResources(void);
-
+        
         void query(QString const& text, execTypeEnum type);
         void query(toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
         void querySelection(execTypeEnum type);
@@ -242,6 +246,9 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
 
         void insertStatement(const QString &);
 
+        void setQueryStatusExecuting(void);
+        void setQueryStatusDone(void); 
+        
         void createActions();
 
         // Imitate something like "create or replace" syntax for MySQL
@@ -257,7 +264,6 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         toWorksheetText   *Editor;
         toTabWidget       *ResultTab;
         toResultTableView *Result;
-        toMultiResultTableView *MultiResult;
         toResultPlanExplain *Plan;
         QWidget           *CurrentTab;
         toSyntaxAnalyzer::statement m_lastQuery; // query is saved in order to reexecute it periodically ("refresh")

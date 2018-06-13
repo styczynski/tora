@@ -53,40 +53,73 @@
 #include <QPushButton>
 #include <QListView>
 #include <QString>
+#include <chrono>
 
-class MultiResult {
+class MultiResult
+{
     public:
         
-        explicit MultiResult(QString name, bool status);
-        QString& getName();
+        MultiResult();
+        QString getName() const;
+        void setName(QString name);
+        bool isDone() const;
+        
+        void setStatusDone();
+        void setStatusExecuting();
+        
+        std::chrono::high_resolution_clock getCreationTime();
+        void resetCreationTime();
         
     private:
     
         QString name_;
         bool status_;
+        std::chrono::high_resolution_clock creation_time_;
 };
 
-class MultiResultListModel : public QAbstractListModel {
+class MultiResultListModel : public QAbstractListModel
+{
     
     Q_OBJECT
 
     public:
 
-        explicit MultiResultListModel(const std::vector<MultiResult*>& results, QObject* parent = 0);
+        explicit MultiResultListModel(const std::vector<MultiResult>& results, QObject* parent = 0);
         int rowCount(const QModelIndex &parent = QModelIndex()) const;
         QVariant data(const QModelIndex &index, int role) const;
         
     private:
         
-        std::vector<MultiResult*> results_;
+        std::vector<MultiResult> results_;
 
 };
 
-class toMultiResultTableView : public QListView
+class toMultiResultList : public QListView
 {
     Q_OBJECT;
     
+    private:
+        static std::map<int, MultiResult> resultSet_;
+    
     public:
-        toMultiResultTableView(QWidget *parent = nullptr);
+        toMultiResultList(QWidget *parent = nullptr);
+        void updateStatus(int id, MultiResult resul);
+        void clearStatus();
+        
 };
 
+class toMultiResultTableView : public QVBoxLayout
+{
+    Q_OBJECT;
+    
+    private:
+        toMultiResultList* list;
+    
+    private slots:
+        void slotClearAction(void);
+    
+    public:
+        toMultiResultTableView(QWidget *parent = nullptr);
+        void updateStatus(int id, MultiResult resul);
+        void clearStatus();
+}

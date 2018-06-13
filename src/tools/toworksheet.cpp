@@ -235,6 +235,8 @@ static QString toSQLToAddress(toConnection &conn, const QString &sql)
 }
 #endif
 
+static toMultiResultTableView* toWorksheet::MultiResultView = nullptr;
+
 void toWorksheet::viewResources(void)
 {
     try
@@ -498,8 +500,10 @@ void toWorksheet::setup(bool autoLoad)
 
     ResultTab = new toTabWidget(EditSplitter);
 
-    MultiResult = new toMultiResultTableView(false, true, ResultTab, "ResultTab");
-    ResultTab->addTab(MultiResult, tr("&Multiple executions"));
+    if(MultiResultView == nullptr) {
+        MultiResultView = new toMultiResultTableView(ResultTab);
+    }
+    ResultTab->addTab(MultiResultView, tr("&Executions"));
 
     Current = Result = new toResultTableView(false, true, ResultTab, "ResultTab");
     ResultTab->addTab(Result, tr("&Result"));
@@ -1157,14 +1161,33 @@ void toWorksheet::queryMulti(bool separateMode, toSyntaxAnalyzer::statement cons
     
     std::cerr << "HELLO QURY MULTI WAS TRIGGERED!\n";
     std::cerr.flush();
+    
+    for(int i=0; i<openWorksheetsCount; ++i) {
+        QString name = toWorksheet::openWorksheets[i]->getCaption();
+        
+        MultiResult mr;
+        mr.setStatusExecuting();
+        mr.setName(name);
+        
+        MultiResultView->updateStatus(i, mr);
+    }
   
     for(int i=0; i<openWorksheetsCount; ++i) {
         std::cerr << "OPEN WORKSHEET " << i << "\n";
         std::cerr.flush();
+        
+        MultiResult mr;
+        mr.setStatusDone();
+        
+        QString name = toWorksheet::openWorksheets[i]->getCaption();
+        mr.setName(name);
+        
         if(separateMode) {
             toWorksheet::openWorksheets[i]->slotExecute();
+            MultiResultView->updateStatus(i, mr);
         } else {
             toWorksheet::openWorksheets[i]->query(statement, type, selectMode);
+            MultiResultView->updateStatus(i, mr);
         }
     }
 }
@@ -1182,8 +1205,53 @@ void toWorksheet::query(QString const& text, execTypeEnum execType)
     query(stat, execType, DontSelectQueryEnum);
 }
 
+void toWorksheet::setQueryStatusDone() {
+    int worksheetIndex = -1;
+    
+    const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+    
+    
+    for(int i=0; i<openWorksheetsCount; ++i) {
+        if(toWorksheet::openWorksheets[i] == this) {
+            worksheetIndex = i;
+        }
+    }
+    
+    if(worksheetIndex >= 0) {
+        QString name = toWorksheet::openWorksheets[worksheetIndex]->getCaption();
+        MultiResult mr;
+        mr.setStatusDone();
+        mr.setName(name);
+        MultiResultView->updateStatus(worksheetIndex, mr);
+    }
+}
+
+void toWorksheet::setQueryStatusExecuting() {
+    int worksheetIndex = -1;
+    
+    const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+    
+    for(int i=0; i<openWorksheetsCount; ++i) {
+        if(toWorksheet::openWorksheets[i] == this) {
+            worksheetIndex = i;
+        }
+    }
+    
+    if(worksheetIndex >= 0) {
+        QString name = toWorksheet::openWorksheets[worksheetIndex]->getCaption();
+        MultiResult mr;
+        mr.setStatusExecuting();
+        mr.setName(name);
+        MultiResultView->updateStatus(worksheetIndex, mr);
+    }
+}
+
+
 void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEnum execType, selectionModeEnum selectMode)
 {
+    
+    setQueryStatusExecuting();
+    
     Result->slotStop();
     RefreshTimer.stop();
 
@@ -1194,15 +1262,19 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
             << "Current statement: " << std::endl
             << statement.sql.toStdString() << std::endl;
 
-    if (statement.firstWord.trimmed().isEmpty())
+    if (statement.firstWord.trimmed().isEmpty()) {
+        setQueryStatusDone();
         return;
+    }
 
     // Imitate something like "create or replace" syntax for MySQL
     //if (connection().providerIs("QMYSQL") && code && toConfigurationNewSingle::Instance().createAction() > 0)
     //mySQLBeforeCreate(chk);
 
-    if (describe(statement))
+    if (describe(statement)) {
+        setQueryStatusDone();
         return;
+    }
 
     QWidget *curr = ResultTab->currentWidget();
     Current->hide();
@@ -1218,6 +1290,7 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
         // put exec in anonymous plsql block or they won't work
         //m_lastQuery = m_lastQuery.sql.trimmed().right(m_lastQuery.sql.length() - m_lastQuery.firstWord.length())
         //m_lastQuery = QString("BEGIN\n%1;\nEND;").arg(m_lastQuery);
+        setQueryStatusDone();
         return;
     }
 
@@ -1226,6 +1299,7 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
         QString t = tr("Ignoring SQL*Plus command");
         slotFirstResult(statement.sql, toConnection::exception(t), false);
         Utils::toStatusMessage(t, true);
+        setQueryStatusDone();
         return;
     }
 
@@ -1333,6 +1407,7 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
                     }
                     catch (...)
                     {
+                        setQueryStatusDone();
                         return ;
                     }
                 }
@@ -1385,6 +1460,8 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
             }
             break;
     }
+    setQueryStatusDone();
+    
 }
 
 void toWorksheet::querySelection(execTypeEnum execType)
@@ -2149,6 +2226,26 @@ void toWorksheet::importData(std::map<QString, QString> &data, const QString &pr
     slotSetCaption();
 }
 #endif
+
+QString toWorksheet::getCaption(void)
+{
+    QString name = WorksheetTool.name();
+
+    QString filename;
+    if (!Editor->filename().isNull() && !Editor->filename().isEmpty())
+    {
+        QFileInfo file(Editor->filename());
+        filename = file.fileName();
+    }
+    else
+        filename = "Untitled";
+
+    name += (Editor->isModified() ?
+             QString(" - *") :
+             QString(" - ")) + filename;
+             
+    return name;
+}
 
 void toWorksheet::slotSetCaption(void)
 {
