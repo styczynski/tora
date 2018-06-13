@@ -323,6 +323,7 @@ SET(TORA_MOC_CLASSES
   tools/towaitevents.h
   tools/toworksheet.h
   tools/toworksheetstatistic.h
+  tools/tomultiresulttableview.h
 
   ts_log/toostream.h
 
@@ -615,6 +616,7 @@ SET(TORA_SOURCES
   tools/towaitevents.cpp
   tools/toworksheet.cpp
   tools/toworksheetstatistic.cpp
+  tools/tomultiresulttableview.cpp
 
   widgets/ExtendedTabWidget.cpp
   widgets/toabout.cpp

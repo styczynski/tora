@@ -139,6 +139,14 @@ namespace ToConfiguration
     }
 }
 
+toMultipleQueryToolButton::toMultipleQueryToolButton(QWidget *parent) :
+    QToolButton(parent)
+{
+    setPopupMode(QToolButton::MenuButtonPopup);
+    QObject::connect(this, SIGNAL(triggered(QAction*)),
+                     this, SLOT(setDefaultAction(QAction*)));
+}
+
 class toWorksheetTool : public toTool
 {
     protected:
@@ -211,15 +219,15 @@ QString toSQLToSql_Id(const QString &sql);
 
 static QString toSQLToAddress(toConnection &conn, const QString &sql)
 {
-	QString sql_id = toSQLToSql_Id(sql);
+    QString sql_id = toSQLToSql_Id(sql);
 
     QString search = Utils::toSQLStripSpecifier(sql);
-	QString s = search.left(CHUNK_SIZE);
+    QString s = search.left(CHUNK_SIZE);
     toQList vals = toQuery::readQuery(conn, SQLAddress, toQueryParams() << search.left(CHUNK_SIZE));
 
     for (toQList::iterator i = vals.begin(); i != vals.end(); i++)
     {
-		int index = std::distance(vals.begin(), i);
+        int index = std::distance(vals.begin(), i);
         if (search == Utils::toSQLString(conn, (QString)*i))
             return (QString)*i;
     }
@@ -231,19 +239,19 @@ void toWorksheet::viewResources(void)
 {
     try
     {
-		QString sql_id = Utils::toSQLToSql_Id(m_lastQuery.sql);
-		Resources->refreshWithParams(toQueryParams() /*<< sid*/ << sql_id);
+        QString sql_id = Utils::toSQLToSql_Id(m_lastQuery.sql);
+        Resources->refreshWithParams(toQueryParams() /*<< sid*/ << sql_id);
 
-		if (LockedConnection)
-		{
-			toQueryParams sidserial = (*LockedConnection)->sessionId();
-			QString sql = toSQL::string("toSGATrace:LongOps", connection());
-			sql += " AND b.SID = :sid<int> && b.SERIAL# = :serial<int> \n";
-			sql += " AND b.SQL_ID :sqlid<char[100]>                    \n";
-			LongOps->setSQL(sql);
-			LongOps->clearParams();
-			LongOps->refreshWithParams(toQueryParams() << sidserial << sql_id);
-		}
+        if (LockedConnection)
+        {
+            toQueryParams sidserial = (*LockedConnection)->sessionId();
+            QString sql = toSQL::string("toSGATrace:LongOps", connection());
+            sql += " AND b.SID = :sid<int> && b.SERIAL# = :serial<int> \n";
+            sql += " AND b.SQL_ID :sqlid<char[100]>                    \n";
+            LongOps->setSQL(sql);
+            LongOps->clearParams();
+            LongOps->refreshWithParams(toQueryParams() << sidserial << sql_id);
+        }
     }
     TOCATCH
 }
@@ -256,16 +264,37 @@ void toWorksheet::createActions()
     parseAct->setShortcut(Qt::CTRL + Qt::Key_F9);
     connect(parseAct, SIGNAL(triggered()), this, SLOT(slotParse(void)));
 
-		executeActMulti = new QAction(QPixmap(const_cast<const char**>(execute_xpm)),
-                             tr("Execute in multiple connections"),
-                             this);
-    connect(executeActMulti, SIGNAL(triggered()), this, SLOT(slotExecuteMulti(void)));
-		
+
     executeAct = new QAction(QPixmap(const_cast<const char**>(execute_xpm)),
                              tr("Execute current statement"),
                              this);
     executeAct->setShortcut(Qt::CTRL + Qt::Key_Return);
     connect(executeAct, SIGNAL(triggered()), this, SLOT(slotExecute(void)));
+
+
+    executeActMulti = new QAction(QPixmap(const_cast<const char**>(execute_xpm)),
+                             tr("Execute in multiple connections"),
+                             this);
+    connect(executeActMulti, SIGNAL(triggered()), this, SLOT(slotExecuteMultiBroadcast()));
+
+
+    executeActMultiSeparate = new QAction(QPixmap(const_cast<const char**>(execute_xpm)),
+                             tr("For each connection execute it's currently edited statements"),
+                             this);
+    connect(executeActMultiSeparate, SIGNAL(triggered()), this, SLOT(slotExecuteMultiBroadcastSeparate()));
+
+
+        /* MULTITOOL */
+        /* toMultipleQueryToolButton */
+
+    executeActMultiMenu = new QMenu;
+    executeActMultiMenu->addAction(executeAct);
+    executeActMultiMenu->addAction(executeActMulti);
+    executeActMultiMenu->addAction(executeActMultiSeparate);
+
+    executeActMultiButton = new toMultipleQueryToolButton;
+    executeActMultiButton->setMenu(executeActMultiMenu);
+    executeActMultiButton->setDefaultAction(executeAct);
 
     executeStepAct = new QAction(QPixmap(const_cast<const char**>(executestep_xpm)),
                                  tr("Step through statements"),
@@ -345,14 +374,30 @@ void toWorksheet::createActions()
 
 void toWorksheet::setup(bool autoLoad)
 {
+
+    const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+    int currentPosition = -1;
+    for(int i=0; i<openWorksheetsCount; ++i) {
+        if(toWorksheet::openWorksheets[i] == this) {
+            currentPosition = i;
+            break;
+         }
+     }
+
+     if(currentPosition > -1) {
+         toWorksheet::openWorksheets.erase(
+             toWorksheet::openWorksheets.begin() + currentPosition
+         );
+     }
+    toWorksheet::openWorksheets.push_back(this);
+
     QToolBar *workToolbar = Utils::toAllocBar(this, tr("SQL worksheet"));
     layout()->addWidget(workToolbar);
-		
-		toWorksheet::openWorksheets.push_back(this);
 
-    workToolbar->addAction(executeAct);
-    workToolbar->addAction(executeActMulti);
-		workToolbar->addAction(executeStepAct);
+    std::cerr << "setup(...)\n";
+
+    workToolbar->addWidget(executeActMultiButton);
+    workToolbar->addAction(executeStepAct);
     workToolbar->addAction(executeAllAct);
     workToolbar->addAction(stopAct);
     workToolbar->addAction(lockConnectionAct);
@@ -446,12 +491,15 @@ void toWorksheet::setup(bool autoLoad)
     layout()->addWidget(EditSplitter);
 
     //Editor = new toWorksheetEditor(this, EditSplitter);
-	Editor = new toWorksheetText(this, EditSplitter);
+    Editor = new toWorksheetText(this, EditSplitter);
     // stop any running query when a file is loaded
     connect(Editor, SIGNAL(fileOpened()), this, SLOT(slotStop()));
     connect(Editor, SIGNAL(modificationChanged(bool)), this, SLOT(slotSetCaption()));
 
     ResultTab = new toTabWidget(EditSplitter);
+
+    MultiResult = new toMultiResultTableView(false, true, ResultTab, "ResultTab");
+    ResultTab->addTab(MultiResult, tr("&Multiple executions"));
 
     Current = Result = new toResultTableView(false, true, ResultTab, "ResultTab");
     ResultTab->addTab(Result, tr("&Result"));
@@ -629,6 +677,7 @@ toWorksheet::toWorksheet(QWidget *main, toConnection &connection, bool autoLoad)
     , ResultModel(NULL)
     , lockConnectionActClicked(false)
 {
+
     createActions();
     setup(autoLoad);
 }
@@ -644,8 +693,8 @@ void toWorksheet::slotWindowActivated(toToolWidget *widget)
         {
             ToolMenu = new QMenu(tr("Edit&or"), this);
 
-            ToolMenu->addAction(executeAct);
-						ToolMenu->addAction(executeActMulti);
+            std::cerr << "slotWindowActivated\n";
+
             ToolMenu->addAction(executeStepAct);
             ToolMenu->addAction(executeAllAct);
             ToolMenu->addAction(stopAct);
@@ -826,24 +875,24 @@ bool toWorksheet::slotClose()
     if (!LockedConnection)
     {
         if(toToolWidget::close()) {
-					const int openWorksheetsCount = toWorksheet::openWorksheets.size();
-					int currentPosition = -1;
-					for(int i=0; i<openWorksheetsCount; ++i) {
-						if(toWorksheet::openWorksheets[i] == this) {
-							currentPosition = i;
-							break;
-						}
-					}
-					
-					if(currentPosition > -1) {
-						toWorksheet::openWorksheets.erase(
-							toWorksheet::openWorksheets.begin() + currentPosition
-						);
-					}
-					
-					return true;
-				}
-				return false;
+            const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+            int currentPosition = -1;
+            for(int i=0; i<openWorksheetsCount; ++i) {
+                if(toWorksheet::openWorksheets[i] == this) {
+                    currentPosition = i;
+                    break;
+                }
+            }
+
+            if(currentPosition > -1) {
+                toWorksheet::openWorksheets.erase(
+                    toWorksheet::openWorksheets.begin() + currentPosition
+                );
+            }
+
+            return true;
+        }
+        return false;
     }
     else
         return false;
@@ -892,8 +941,6 @@ void toWorksheet::handle(QObject *obj, QMenu *menu)
     {
         Q_UNUSED(t);
         menu->addSeparator();
-        menu->addAction(executeAct);
-				menu->addAction(executeActMulti);
         menu->addAction(executeStepAct);
         menu->addAction(executeAllAct);
         menu->addAction(refreshAct);
@@ -913,11 +960,11 @@ void toWorksheet::handle(QObject *obj, QMenu *menu)
         menu->addAction(SavedMenu->menuAction());
         menu->addAction(InsertSavedMenu->menuAction());
         menu->addAction(saveLastAct);
-	}
-	else if (obj == Result)
-	{
-		//TODO CopyAsSQLValue
-	}
+    }
+    else if (obj == Result)
+    {
+        //TODO CopyAsSQLValue
+    }
 }
 
 toWorksheet::~toWorksheet()
@@ -992,18 +1039,18 @@ void toWorksheet::slotRefresh(void)
 
 bool toWorksheet::describe(toSyntaxAnalyzer::statement const& query)
 {
-	static QRegExp desc("\\s*DESC(R(I(B(E)?)?)?)?\\s+",  Qt::CaseInsensitive);
+    static QRegExp desc("\\s*DESC(R(I(B(E)?)?)?)?\\s+",  Qt::CaseInsensitive);
 
-	if (!query.firstWord.startsWith("DESC", Qt::CaseInsensitive))
-		return false;
+    if (!query.firstWord.startsWith("DESC", Qt::CaseInsensitive))
+        return false;
 
-	int pos = desc.indexIn(query.sql, 0);
-	if (pos == -1)
-		return false;
+    int pos = desc.indexIn(query.sql, 0);
+    if (pos == -1)
+        return false;
 
-	Editor->gotoPosition(query.posFrom + desc.matchedLength());
-	slotDescribe();
-	return true;
+    Editor->gotoPosition(query.posFrom + desc.matchedLength());
+    slotDescribe();
+    return true;
 }
 
 QString toWorksheet::schema() const
@@ -1103,13 +1150,23 @@ void toWorksheet::mySQLBeforeCreate(QString &chk)
     }
 } // mySQLBeforeCreate
 
-void toWorksheet::queryMulti(toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum selectMode)
+void toWorksheet::queryMulti(bool separateMode, toSyntaxAnalyzer::statement const& statement, execTypeEnum type, selectionModeEnum selectMode)
 {
-	
-	const int openWorksheetsCount = toWorksheet::openWorksheets.size();
-	
-	TLOG(0, toDecorator, __HERE__)
-		<< "queryMulti executed! openWorksheetsCount = " << openWorksheetsCount << std::endl;
+    
+    const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+    
+    std::cerr << "HELLO QURY MULTI WAS TRIGGERED!\n";
+    std::cerr.flush();
+  
+    for(int i=0; i<openWorksheetsCount; ++i) {
+        std::cerr << "OPEN WORKSHEET " << i << "\n";
+        std::cerr.flush();
+        if(separateMode) {
+            toWorksheet::openWorksheets[i]->slotExecute();
+        } else {
+            toWorksheet::openWorksheets[i]->query(statement, type, selectMode);
+        }
+    }
 }
 
 void toWorksheet::query(QString const& text, execTypeEnum execType)
@@ -1483,10 +1540,16 @@ void toWorksheet::slotExecute()
     query(stat, Normal);
 }
 
-void toWorksheet::slotExecuteMulti()
+void toWorksheet::slotExecuteMultiBroadcast()
 {
     toSyntaxAnalyzer::statement stat = currentStatement();
-    queryMulti(stat, Normal);
+    queryMulti(false, stat, Normal);
+}
+
+void toWorksheet::slotExecuteMultiBroadcastSeparate()
+{
+    toSyntaxAnalyzer::statement stat = currentStatement();
+    queryMulti(true, stat, Normal);
 }
 
 
@@ -1815,7 +1878,7 @@ void toWorksheet::slotDescribeNew(void)
                 SQLParser::Token const* e = stmt->translateAlias (currentToken->toString(), &*currentToken);
                 if (e)
                 {
-                	buf << currentToken->toString() << " is alias for: " << e->toStringRecursive();
+                    buf << currentToken->toString() << " is alias for: " << e->toStringRecursive();
                 }
                 break;
         }
@@ -2159,9 +2222,9 @@ void toWorksheet::slotLockConnection(bool enabled)
 
 void toWorksheet::slotRefreshModel(class toResultModel *model)
 {
-	ResultModel = model;
-	if (ResultModel)
-		connect(ResultModel, SIGNAL(lastResult(const QString &, bool)), this, SLOT(slotLastResult(const QString &, bool)));
+    ResultModel = model;
+    if (ResultModel)
+        connect(ResultModel, SIGNAL(lastResult(const QString &, bool)), this, SLOT(slotLastResult(const QString &, bool)));
 }
 
 void toWorksheet::lockConnection()

@@ -40,6 +40,7 @@
 #include "core/tocontextmenu.h"
 #include "widgets/totoolwidget.h"
 #include "ui_toworksheetsetupui.h"
+#include "tomultiresulttableview.h"
 
 #include <QtCore/QTimer>
 #include <QtCore/QString>
@@ -47,6 +48,7 @@
 #include <QLabel>
 #include <QAction>
 #include <QToolBar>
+#include <QToolButton>
 
 #include <map>
 
@@ -102,14 +104,22 @@ namespace ToConfiguration
     };
 };
 
+class toMultipleQueryToolButton : public QToolButton
+{
+    Q_OBJECT
+public:
+    explicit toMultipleQueryToolButton(QWidget *parent = 0);
+};
+
+
 class toWorksheet : public toToolWidget, public toContextMenuHandler
 {
         Q_OBJECT;
     public:
         typedef toToolWidget super;
 
-				static std::vector<toWorksheet*> openWorksheets;
-				
+        static std::vector<toWorksheet*> openWorksheets;
+
         toWorksheet(QWidget *parent, toConnection &connection, bool autoLoad = true);
         virtual ~toWorksheet();
 
@@ -163,7 +173,8 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         void slotConnectionChanged(void);
         void slotRefresh();
         void slotExecute();
-				void slotExecuteMulti();
+        void slotExecuteMultiBroadcast();
+        void slotExecuteMultiBroadcastSeparate();
         void slotParse();
         void slotExecuteAll();
         void slotExecuteStep();
@@ -223,7 +234,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         void query(QString const& text, execTypeEnum type);
         void query(toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
         void querySelection(execTypeEnum type);
-			  void queryMulti(toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
+        void queryMulti(bool separateMode, toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
 
         bool checkSave();
         void saveDefaults(void);
@@ -246,6 +257,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         toWorksheetText   *Editor;
         toTabWidget       *ResultTab;
         toResultTableView *Result;
+        toMultiResultTableView *MultiResult;
         toResultPlanExplain *Plan;
         QWidget           *CurrentTab;
         toSyntaxAnalyzer::statement m_lastQuery; // query is saved in order to reexecute it periodically ("refresh")
@@ -278,7 +290,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
 
         bool m_FirstDataReceived;
         QTime Time;     // Timer used for query run duration (See QLabel *Started, slotPoll())
-        QTimer Poll;	// Periodically refresh duration timer "Started"
+        QTimer Poll;    // Periodically refresh duration timer "Started"
 
         QWidget *Current;
         std::map<int, QWidget *> History;
@@ -286,7 +298,10 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
 
         QMenu *ToolMenu;
 
-        QAction *parseAct, *lockConnectionAct, *executeAct, *executeActMulti, *executeStepAct,
+        QMenu *executeActMultiMenu;
+        toMultipleQueryToolButton* executeActMultiButton;
+
+        QAction *parseAct, *lockConnectionAct, *executeAct, *executeActMulti, *executeActMultiSeparate, *executeStepAct,
                 *executeAllAct,
                 *refreshAct, *describeAct, *describeActNew, *explainAct, *stopAct, *eraseAct,
                 *statisticAct, *previousAct, *nextAct, *saveLastAct;
