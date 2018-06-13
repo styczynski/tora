@@ -1169,7 +1169,7 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
         QString t = tr("Ignoring SQL*Plus command");
         slotFirstResult(statement.sql, toConnection::exception(t), false);
         Utils::toStatusMessage(t, true);
-        return ;
+        return;
     }
 
     Time.start(); // Setup query duration timer
@@ -1495,7 +1495,7 @@ void toWorksheet::slotExplainPlan()
     if (Editor->hasSelectedText())
     {
         querySelection(OnlyPlan);
-        return ;
+        return;
     }
     toSyntaxAnalyzer::statement stat = currentStatement();
     query(stat, OnlyPlan);
