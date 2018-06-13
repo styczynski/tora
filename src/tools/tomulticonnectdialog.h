@@ -41,6 +41,7 @@
 #include "core/toconnection.h"
 #include "widgets/toresultmodel.h"
 #include "core/toeditwidget.h"
+#include "tomultiresulttableview.h"
 
 #include <QtCore/QAbstractTableModel>
 #include <QHeaderView>
@@ -55,87 +56,24 @@
 #include <QString>
 #include <QGroupBox>
 #include <QMenuBar>
-#include <QVBoxLayout>
+#include <QDialog>
+#include <QPushButton>
 #include <QHBoxLayout>
-#include <chrono>
 
-class MultiResult
-{
-    public:
-        
-        MultiResult();
-        QString getName() const;
-        void setName(QString name);
-        bool isDone() const;
-        
-        void setStatusDone();
-        void setStatusExecuting();
-        
-        std::chrono::high_resolution_clock::time_point getCreationTime() const;
-        void resetCreationTime();
-        
-        void setSelected(bool state = true);
-        bool isSelected() const;
-        
-        inline bool operator!=(const MultiResult& mr) const {
-            return !(name_ == mr.name_ && status_ == mr.status_);
-        }
-        
-    private:
-    
-        QString name_;
-        bool status_;
-        bool selected_;
-        std::chrono::high_resolution_clock::time_point creation_time_;
-};
-
-class MultiResultListModel : public QAbstractListModel
-{
-    
-    Q_OBJECT
-
-    public:
-
-        explicit MultiResultListModel(const std::vector<MultiResult>& results, QObject* parent = 0);
-        int rowCount(const QModelIndex &parent = QModelIndex()) const;
-        QVariant data(const QModelIndex &index, int role) const;
-        
-    private:
-        
-        std::vector<MultiResult> results_;
-
-};
-
-class toMultiResultTableView : public QListView
+class toMultiConnectionChooserDialog : public QDialog
 {
     Q_OBJECT;
     
     private:
-        static std::map<int, MultiResult> resultSet_;
+        toMultiResultTableView* list;
+        QHBoxLayout* mainLayout;
+        QPushButton* confirmButton;
     
-    public:
-        toMultiResultTableView(QWidget *parent = nullptr);
-        void updateStatus(int id, MultiResult resul);
-        void clearStatus();
-        std::map<int, MultiResult> getConnections() const;
-        
     protected slots:
-        void slotItemClicked(QModelIndex item);
         
-};
-
-/*class toMultiResultTableView : public QGroupBox
-{
-    Q_OBJECT;
-    
-    private:
-        toMultiResultList* list;
-    
-    private slots:
-        void slotClearAction(void);
+        void confirmClicked(void);
     
     public:
-        toMultiResultTableView(QWidget *parent = nullptr);
-        void updateStatus(int id, MultiResult resul);
-        void clearStatus();
-};*/
+        toMultiConnectionChooserDialog(QWidget *parent = nullptr);
+};
+

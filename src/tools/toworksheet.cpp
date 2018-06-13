@@ -275,7 +275,7 @@ void toWorksheet::createActions()
 
 
     executeActMulti = new QAction(QPixmap(const_cast<const char**>(execute_xpm)),
-                             tr("Execute in multiple connections"),
+                             tr("Execute in all opened connections"),
                              this);
     connect(executeActMulti, SIGNAL(triggered()), this, SLOT(slotExecuteMultiBroadcast()));
 
@@ -286,6 +286,12 @@ void toWorksheet::createActions()
     connect(executeActMultiSeparate, SIGNAL(triggered()), this, SLOT(slotExecuteMultiBroadcastSeparate()));
 
 
+    executeActMultiSelected = new QAction(QPixmap(const_cast<const char**>(execute_xpm)),
+                             tr("Execute in choosen opened connections"),
+                             this);
+    connect(executeActMultiSelected, SIGNAL(triggered()), this, SLOT(slotExecuteMultiSelected()));
+
+    
         /* MULTITOOL */
         /* toMultipleQueryToolButton */
 
@@ -293,6 +299,7 @@ void toWorksheet::createActions()
     executeActMultiMenu->addAction(executeAct);
     executeActMultiMenu->addAction(executeActMulti);
     executeActMultiMenu->addAction(executeActMultiSeparate);
+    executeActMultiMenu->addAction(executeActMultiSelected);
 
     executeActMultiButton = new toMultipleQueryToolButton;
     executeActMultiButton->setMenu(executeActMultiMenu);
@@ -676,11 +683,6 @@ void toWorksheet::setup(bool autoLoad)
 
     slotSetCaption();
     
-    
-    MultiResult mr;
-    mr.setStatusDone();
-    mr.setName(getCaption());
-    MultiResultView->updateStatus(currentPosition, mr);
 }
 
 toWorksheet::toWorksheet(QWidget *main, toConnection &connection, bool autoLoad)
@@ -1226,7 +1228,7 @@ void toWorksheet::setQueryStatusDone() {
     }
     
     if(worksheetIndex >= 0) {
-        QString name = toWorksheet::openWorksheets[worksheetIndex]->getCaption();
+        QString name = getCaption();
         MultiResult mr;
         mr.setStatusDone();
         mr.setName(name);
@@ -1246,7 +1248,7 @@ void toWorksheet::setQueryStatusExecuting() {
     }
     
     if(worksheetIndex >= 0) {
-        QString name = toWorksheet::openWorksheets[worksheetIndex]->getCaption();
+        QString name = getCaption();
         MultiResult mr;
         mr.setStatusExecuting();
         mr.setName(name);
@@ -1271,7 +1273,6 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
             << statement.sql.toStdString() << std::endl;
 
     if (statement.firstWord.trimmed().isEmpty()) {
-        setQueryStatusDone();
         return;
     }
 
@@ -1280,7 +1281,6 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
     //mySQLBeforeCreate(chk);
 
     if (describe(statement)) {
-        setQueryStatusDone();
         return;
     }
 
@@ -1298,7 +1298,6 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
         // put exec in anonymous plsql block or they won't work
         //m_lastQuery = m_lastQuery.sql.trimmed().right(m_lastQuery.sql.length() - m_lastQuery.firstWord.length())
         //m_lastQuery = QString("BEGIN\n%1;\nEND;").arg(m_lastQuery);
-        setQueryStatusDone();
         return;
     }
 
@@ -1307,7 +1306,6 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
         QString t = tr("Ignoring SQL*Plus command");
         slotFirstResult(statement.sql, toConnection::exception(t), false);
         Utils::toStatusMessage(t, true);
-        setQueryStatusDone();
         return;
     }
 
@@ -1415,7 +1413,6 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
                     }
                     catch (...)
                     {
-                        setQueryStatusDone();
                         return ;
                     }
                 }
@@ -1467,8 +1464,8 @@ void toWorksheet::query(toSyntaxAnalyzer::statement const& statement, execTypeEn
                 Result->setSQLName(statement.sql.simplified().left(40));
             }
             break;
+
     }
-    setQueryStatusDone();
     
 }
 
@@ -1625,6 +1622,12 @@ void toWorksheet::slotExecute()
     query(stat, Normal);
 }
 
+void toWorksheet::slotExecuteMultiSelected()
+{
+    toMultiConnectionChooserDialog chooserDialog;
+    chooserDialog.show();
+}
+
 void toWorksheet::slotExecuteMultiBroadcast()
 {
     toSyntaxAnalyzer::statement stat = currentStatement();
@@ -1742,6 +1745,7 @@ void toWorksheet::slotEraseLogButton()
 
 void toWorksheet::slotQueryDone(void)
 {
+    setQueryStatusDone();
     stopAct->setDisabled(true);
 
     // Possibly the toConnectionSub.Schema got changed after ~toQuery
@@ -2272,6 +2276,22 @@ void toWorksheet::slotSetCaption(void)
              QString(" - *") :
              QString(" - ")) + filename;
     toToolWidget::setCaption(name);
+    
+    const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+    int currentPosition = -1;
+    for(int i=0; i<openWorksheetsCount; ++i) {
+       if(toWorksheet::openWorksheets[i] == this) {
+           currentPosition = i;
+           break;
+        }
+    }
+
+    if(currentPosition > -1) {
+        MultiResult mr;
+        mr.setStatusDone();
+        mr.setName(name);
+        MultiResultView->updateStatus(currentPosition, mr);
+    }
 }
 
 toToolWidget* toWorksheet::fileWorksheet(const QString &file)

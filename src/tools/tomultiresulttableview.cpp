@@ -71,6 +71,7 @@
 MultiResult::MultiResult() {
     name_ = QString("");
     status_ = false;
+    selected_ = false;
     creation_time_ = std::chrono::high_resolution_clock::now();
 }
 
@@ -102,7 +103,15 @@ void MultiResult::setStatusExecuting() {
     status_ = false;
 }
 
-std::map<int, MultiResult> toMultiResultList::resultSet_;
+void MultiResult::setSelected(bool state) {
+    selected_ = state;
+}
+
+bool MultiResult::isSelected() const {
+    return selected_;
+}
+
+std::map<int, MultiResult> toMultiResultTableView::resultSet_;
 
 MultiResultListModel::MultiResultListModel(const std::vector<MultiResult>& results, QObject *parent) : QAbstractListModel(parent) {
     results_ = results;
@@ -143,19 +152,55 @@ QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
             return QPixmap(const_cast<const char**>(execute_xpm));
         }
         return QPixmap(const_cast<const char**>(clock_xpm));
+    } else if(role == Qt::CheckStateRole) {
+        if(!results_.at(index.row()).isSelected()) {
+            return QVariant(Qt::Unchecked);
+        }
+        return QVariant(Qt::Checked);
+    } else if(role == Qt::UserRole) {
+        return QVariant(results_.at(index.row()).getName());
     } else {
         return QVariant();
     }
 }
 
-toMultiResultList::toMultiResultList(QWidget *parent) : QListView(parent) {
+toMultiResultTableView::toMultiResultTableView(QWidget *parent) : QListView(parent) {
     
     std::vector<MultiResult> results;
     MultiResultListModel* model = new MultiResultListModel(results);
     setModel(model);
+    
+    connect(model, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
 }
 
-void toMultiResultList::updateStatus(int id, MultiResult result) {
+void toMultiResultTableView::slotItemClicked(QModelIndex item) {
+    QString name = item.data(Qt::UserRole).value<QString>();
+    for(std::pair<int, MultiResult> result : resultSet_) {
+       if(result.second.getName() == name) {
+           
+           result.second.setSelected(!result.second.isSelected());
+           
+           std::vector<MultiResult> results;
+           for(std::pair<int, MultiResult> result : resultSet_) {
+              MultiResult mr = result.second;
+              results.push_back(mr);
+           }
+            
+           MultiResultListModel* model = new MultiResultListModel(results);
+           setModel(model);
+            
+           connect(model, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
+           
+           return;
+       }
+    }
+}
+
+std::map<int, MultiResult> toMultiResultTableView::getConnections() const {
+    return resultSet_;
+}
+
+void toMultiResultTableView::updateStatus(int id, MultiResult result) {
     
     if(resultSet_[id] != result) {
         result.resetCreationTime();
@@ -170,19 +215,23 @@ void toMultiResultList::updateStatus(int id, MultiResult result) {
     
     MultiResultListModel* model = new MultiResultListModel(results);
     setModel(model);
+    
+    connect(model, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
 }
 
-void toMultiResultList::clearStatus() {
+void toMultiResultTableView::clearStatus() {
     resultSet_.clear();
     std::vector<MultiResult> results;
     MultiResultListModel* model = new MultiResultListModel(results);
     setModel(model);
+    
+    connect(model, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
 }
 
-
+/*
 toMultiResultTableView::toMultiResultTableView(QWidget *parent) : QGroupBox(parent) {
-    QVBoxLayout* layout = new QVBoxLayout;
-    QMenuBar* menuBar = new QMenuBar;
+    QHBoxLayout* layout = new QHBoxLayout;
+    *QMenuBar* menuBar = new QMenuBar;
 
     QMenu* quickOptionsMenu = new QMenu(tr("&Quick options"), this);
     
@@ -194,9 +243,9 @@ toMultiResultTableView::toMultiResultTableView(QWidget *parent) : QGroupBox(pare
     connect(clearAction, SIGNAL(triggered()), this, SLOT(slotClearAction()));
     
     menuBar->addMenu(quickOptionsMenu);
-    layout->setMenuBar(menuBar);
+    layout->setMenuBar(menuBar);*
     
-    list = new toMultiResultList(this);
+    list = new toMultiResultTableView(this);
     layout->addWidget(list);
     
     setLayout(layout);
@@ -212,4 +261,4 @@ void toMultiResultTableView::updateStatus(int id, MultiResult result) {
 
 void toMultiResultTableView::clearStatus() {
     list->clearStatus();
-}
+}*/

@@ -324,6 +324,7 @@ SET(TORA_MOC_CLASSES
   tools/toworksheet.h
   tools/toworksheetstatistic.h
   tools/tomultiresulttableview.h
+  tools/tomulticonnectdialog.h
 
   ts_log/toostream.h
 
@@ -617,6 +618,7 @@ SET(TORA_SOURCES
   tools/toworksheet.cpp
   tools/toworksheetstatistic.cpp
   tools/tomultiresulttableview.cpp
+  tools/tomulticonnectdialog.cpp
 
   widgets/ExtendedTabWidget.cpp
   widgets/toabout.cpp

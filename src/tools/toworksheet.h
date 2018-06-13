@@ -41,6 +41,7 @@
 #include "widgets/totoolwidget.h"
 #include "ui_toworksheetsetupui.h"
 #include "tomultiresulttableview.h"
+#include "tomulticonnectdialog.h"
 
 #include <QtCore/QTimer>
 #include <QtCore/QString>
@@ -174,6 +175,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         void slotRefresh();
         void slotExecute();
         void slotExecuteMultiBroadcast();
+        void slotExecuteMultiSelected();
         void slotExecuteMultiBroadcastSeparate();
         void slotParse();
         void slotExecuteAll();
@@ -307,8 +309,8 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         QMenu *executeActMultiMenu;
         toMultipleQueryToolButton* executeActMultiButton;
 
-        QAction *parseAct, *lockConnectionAct, *executeAct, *executeActMulti, *executeActMultiSeparate, *executeStepAct,
-                *executeAllAct,
+        QAction *parseAct, *lockConnectionAct, *executeAct, *executeActMulti,
+                *executeActMultiSeparate, *executeActMultiSelected, *executeStepAct, *executeAllAct,
                 *refreshAct, *describeAct, *describeActNew, *explainAct, *stopAct, *eraseAct,
                 *statisticAct, *previousAct, *nextAct, *saveLastAct;
 
