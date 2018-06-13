@@ -66,6 +66,7 @@
 
 #include "icons/execute.xpm"
 #include "icons/clock.xpm"
+#include "icons/refresh.xpm"
 
 MultiResult::MultiResult() {
     name_ = QString("");
@@ -73,7 +74,7 @@ MultiResult::MultiResult() {
     creation_time_ = std::chrono::high_resolution_clock::now();
 }
 
-std::chrono::high_resolution_clock MultiResult::getCreationTime() {
+std::chrono::high_resolution_clock::time_point MultiResult::getCreationTime() const {
     return creation_time_;
 }
 
@@ -124,10 +125,12 @@ QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
         if(results_.at(index.row()).isDone()) {
            auto now = std::chrono::high_resolution_clock::now();
            label +=
-             std::string(" - Ready (started ")
-             + std::to_string(
-                std::chrono::duration_cast<std::chrono::nanoseconds>(now - results_.at(index.row()).getCreationTime()).count()
-                / 1000
+             QString(" - Ready (started ")
+             + QString(
+                 std::to_string(
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(now - results_.at(index.row()).getCreationTime()).count()
+                    / 1000
+                 ).c_str()
              )
              + " ms ago)";
         } else {
@@ -154,7 +157,7 @@ toMultiResultList::toMultiResultList(QWidget *parent) : QListView(parent) {
 
 void toMultiResultList::updateStatus(int id, MultiResult result) {
     
-    if(resultset_[id] != result) {
+    if(resultSet_[id] != result) {
         result.resetCreationTime();
         resultSet_[id] = result;
     }
@@ -177,19 +180,26 @@ void toMultiResultList::clearStatus() {
 }
 
 
-toMultiResultTableView::toMultiResultTableView(QWidget *parent) : QVBoxLayout(parent) {
+toMultiResultTableView::toMultiResultTableView(QWidget *parent) : QGroupBox(parent) {
+    QVBoxLayout* layout = new QVBoxLayout;
     QMenuBar* menuBar = new QMenuBar;
 
-    quickOptionsMenu = new QMenu(tr("&Quick options"), this);
+    QMenu* quickOptionsMenu = new QMenu(tr("&Quick options"), this);
     
-    clearAction = quickOptionsMenu->addAction(tr("&Clear"));
+    QAction* clearAction = new QAction(QPixmap(const_cast<const char**>(refresh_xpm)),
+                                 tr("Clear list"),
+                                 this);
+    
+    quickOptionsMenu->addAction(clearAction);
     connect(clearAction, SIGNAL(triggered()), this, SLOT(slotClearAction()));
     
     menuBar->addMenu(quickOptionsMenu);
-    setMenuBar(menuBar);
+    layout->setMenuBar(menuBar);
     
     list = new toMultiResultList(this);
-    addWidget(list);
+    layout->addWidget(list);
+    
+    setLayout(layout);
 }
 
 void toMultiResultTableView::slotClearAction(void) {

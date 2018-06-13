@@ -53,6 +53,9 @@
 #include <QPushButton>
 #include <QListView>
 #include <QString>
+#include <QGroupBox>
+#include <QMenuBar>
+#include <QVBoxLayout>
 #include <chrono>
 
 class MultiResult
@@ -67,14 +70,18 @@ class MultiResult
         void setStatusDone();
         void setStatusExecuting();
         
-        std::chrono::high_resolution_clock getCreationTime();
+        std::chrono::high_resolution_clock::time_point getCreationTime() const;
         void resetCreationTime();
+        
+        inline bool operator!=(const MultiResult& mr) const {
+            return (name_ == mr.name_ && status_ == mr.status_);
+        }
         
     private:
     
         QString name_;
         bool status_;
-        std::chrono::high_resolution_clock creation_time_;
+        std::chrono::high_resolution_clock::time_point creation_time_;
 };
 
 class MultiResultListModel : public QAbstractListModel
@@ -108,7 +115,7 @@ class toMultiResultList : public QListView
         
 };
 
-class toMultiResultTableView : public QVBoxLayout
+class toMultiResultTableView : public QGroupBox
 {
     Q_OBJECT;
     
@@ -122,4 +129,4 @@ class toMultiResultTableView : public QVBoxLayout
         toMultiResultTableView(QWidget *parent = nullptr);
         void updateStatus(int id, MultiResult resul);
         void clearStatus();
-}
+};

@@ -235,7 +235,7 @@ static QString toSQLToAddress(toConnection &conn, const QString &sql)
 }
 #endif
 
-static toMultiResultTableView* toWorksheet::MultiResultView = nullptr;
+toMultiResultTableView* toWorksheet::MultiResultView = nullptr;
 
 void toWorksheet::viewResources(void)
 {
@@ -380,19 +380,21 @@ void toWorksheet::setup(bool autoLoad)
     const int openWorksheetsCount = toWorksheet::openWorksheets.size();
     int currentPosition = -1;
     for(int i=0; i<openWorksheetsCount; ++i) {
-        if(toWorksheet::openWorksheets[i] == this) {
-            currentPosition = i;
-            break;
-         }
-     }
+       if(toWorksheet::openWorksheets[i] == this) {
+           currentPosition = i;
+           break;
+        }
+    }
 
-     if(currentPosition > -1) {
-         toWorksheet::openWorksheets.erase(
-             toWorksheet::openWorksheets.begin() + currentPosition
-         );
-     }
+    if(currentPosition > -1) {
+        toWorksheet::openWorksheets.erase(
+            toWorksheet::openWorksheets.begin() + currentPosition
+        );
+    }
+    
+    currentPosition = toWorksheet::openWorksheets.size();
     toWorksheet::openWorksheets.push_back(this);
-
+    
     QToolBar *workToolbar = Utils::toAllocBar(this, tr("SQL worksheet"));
     layout()->addWidget(workToolbar);
 
@@ -673,6 +675,12 @@ void toWorksheet::setup(bool autoLoad)
     s.endGroup();
 
     slotSetCaption();
+    
+    
+    MultiResult mr;
+    mr.setStatusDone();
+    mr.setName(getCaption());
+    MultiResultView->updateStatus(currentPosition, mr);
 }
 
 toWorksheet::toWorksheet(QWidget *main, toConnection &connection, bool autoLoad)
