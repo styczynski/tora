@@ -108,6 +108,8 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
     public:
         typedef toToolWidget super;
 
+				static std::vector<toWorksheet*> openWorksheets;
+				
         toWorksheet(QWidget *parent, toConnection &connection, bool autoLoad = true);
         virtual ~toWorksheet();
 
@@ -161,6 +163,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         void slotConnectionChanged(void);
         void slotRefresh();
         void slotExecute();
+				void slotExecuteMulti();
         void slotParse();
         void slotExecuteAll();
         void slotExecuteStep();
@@ -220,6 +223,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         void query(QString const& text, execTypeEnum type);
         void query(toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
         void querySelection(execTypeEnum type);
+			  void queryMulti(toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
 
         bool checkSave();
         void saveDefaults(void);
@@ -282,7 +286,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
 
         QMenu *ToolMenu;
 
-        QAction *parseAct, *lockConnectionAct, *executeAct, *executeStepAct,
+        QAction *parseAct, *lockConnectionAct, *executeAct, *executeActMulti, *executeStepAct,
                 *executeAllAct,
                 *refreshAct, *describeAct, *describeActNew, *explainAct, *stopAct, *eraseAct,
                 *statisticAct, *previousAct, *nextAct, *saveLastAct;

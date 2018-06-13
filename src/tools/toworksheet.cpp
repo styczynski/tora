@@ -248,12 +248,19 @@ void toWorksheet::viewResources(void)
     TOCATCH
 }
 
+std::vector<toWorksheet*> toWorksheet::openWorksheets;
+
 void toWorksheet::createActions()
 {
     parseAct = new QAction(tr("Check syntax of buffer"), this);
     parseAct->setShortcut(Qt::CTRL + Qt::Key_F9);
     connect(parseAct, SIGNAL(triggered()), this, SLOT(slotParse(void)));
 
+		executeActMulti = new QAction(QPixmap(const_cast<const char**>(execute_xpm)),
+                             tr("Execute in multiple connections"),
+                             this);
+    connect(executeActMulti, SIGNAL(triggered()), this, SLOT(slotExecuteMulti(void)));
+		
     executeAct = new QAction(QPixmap(const_cast<const char**>(execute_xpm)),
                              tr("Execute current statement"),
                              this);
@@ -340,9 +347,12 @@ void toWorksheet::setup(bool autoLoad)
 {
     QToolBar *workToolbar = Utils::toAllocBar(this, tr("SQL worksheet"));
     layout()->addWidget(workToolbar);
+		
+		toWorksheet::openWorksheets.push_back(this);
 
     workToolbar->addAction(executeAct);
-    workToolbar->addAction(executeStepAct);
+    workToolbar->addAction(executeActMulti);
+		workToolbar->addAction(executeStepAct);
     workToolbar->addAction(executeAllAct);
     workToolbar->addAction(stopAct);
     workToolbar->addAction(lockConnectionAct);
@@ -635,6 +645,7 @@ void toWorksheet::slotWindowActivated(toToolWidget *widget)
             ToolMenu = new QMenu(tr("Edit&or"), this);
 
             ToolMenu->addAction(executeAct);
+						ToolMenu->addAction(executeActMulti);
             ToolMenu->addAction(executeStepAct);
             ToolMenu->addAction(executeAllAct);
             ToolMenu->addAction(stopAct);
@@ -814,7 +825,25 @@ bool toWorksheet::slotClose()
     unlockConnection();
     if (!LockedConnection)
     {
-        return toToolWidget::close();
+        if(toToolWidget::close()) {
+					const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+					int currentPosition = -1;
+					for(int i=0; i<openWorksheetsCount; ++i) {
+						if(toWorksheet::openWorksheets[i] == this) {
+							currentPosition = i;
+							break;
+						}
+					}
+					
+					if(currentPosition > -1) {
+						toWorksheet::openWorksheets.erase(
+							toWorksheet::openWorksheets.begin() + currentPosition
+						);
+					}
+					
+					return true;
+				}
+				return false;
     }
     else
         return false;
@@ -864,6 +893,7 @@ void toWorksheet::handle(QObject *obj, QMenu *menu)
         Q_UNUSED(t);
         menu->addSeparator();
         menu->addAction(executeAct);
+				menu->addAction(executeActMulti);
         menu->addAction(executeStepAct);
         menu->addAction(executeAllAct);
         menu->addAction(refreshAct);
@@ -1072,6 +1102,15 @@ void toWorksheet::mySQLBeforeCreate(QString &chk)
         }
     }
 } // mySQLBeforeCreate
+
+void toWorksheet::queryMulti(toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum selectMode)
+{
+	
+	const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+	
+	TLOG(0, toDecorator, __HERE__)
+		<< "queryMulti executed! openWorksheetsCount = " << openWorksheetsCount << std::endl;
+}
 
 void toWorksheet::query(QString const& text, execTypeEnum execType)
 {
@@ -1443,6 +1482,13 @@ void toWorksheet::slotExecute()
     toSyntaxAnalyzer::statement stat = currentStatement();
     query(stat, Normal);
 }
+
+void toWorksheet::slotExecuteMulti()
+{
+    toSyntaxAnalyzer::statement stat = currentStatement();
+    queryMulti(stat, Normal);
+}
+
 
 void toWorksheet::slotExplainPlan()
 {
