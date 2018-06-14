@@ -203,7 +203,12 @@ toMultiResultTableView::toMultiResultTableView(QWidget *parent, bool checkMode) 
 }
 
 toMultiResultTableView::~toMultiResultTableView() {
-    views_.erase(std::remove(views_.begin(), views_.end(), this), views_.end());
+    const int len = views_.size();
+    for(int i=0;i<len;++i) {
+        if(views_[i] == this) {
+            views_[i] = NULL;
+        }
+    }
 }
 
 void toMultiResultTableView::slotItemClicked(QModelIndex item) {
