@@ -74,4 +74,4 @@ The connections can be selected freely with checkboxes.
 
 The results of the query are presented as normally in the standard Tora tab you are familiar with.
 
-*Piotr Styczyński 2018*
+*Piotr Styczyński 2018, summer term,  Warsaw University*
