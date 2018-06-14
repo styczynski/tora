@@ -125,13 +125,8 @@ void MultiResultListModel::setCheckMode(bool mode) {
 }
 
 QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
-    // Check that the index is valid and within the correct range first:
     if(!index.isValid()) return QVariant();
-    //if (index.row() >= decks_.size()) return QVariant();
-
     if(role == Qt::DisplayRole) {
-        // Only returns something for the roles you support (DisplayRole is a minimum)
-        // Here we assume that the "MultiResult" class has a "lastName" method but of course any string can be returned
         QString label = results_.at(index.row()).getName();
         
         if(results_.at(index.row()).isDone()) {
@@ -175,6 +170,7 @@ QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
 }
 
 std::vector<toMultiResultTableView*> toMultiResultTableView::views_;
+std::map<int, MultiResult> toMultiResultTableView::resultSet_;
 
 void toMultiResultTableView::refreshModel() {
     
@@ -182,7 +178,7 @@ void toMultiResultTableView::refreshModel() {
    for(int i=0; i<len; ++i) {
        if(views_[i] != NULL) {
            std::vector<MultiResult> results;
-           for(std::pair<int, MultiResult> result : views_[i]->resultSet_) {
+           for(std::pair<int, MultiResult> result : resultSet_) {
               MultiResult mr = result.second;
               results.push_back(mr);
            }
@@ -213,25 +209,15 @@ toMultiResultTableView::~toMultiResultTableView() {
 void toMultiResultTableView::slotItemClicked(QModelIndex item) {
     QString idStr = item.data(Qt::UserRole).value<QString>();
     
-    std::cerr << "slotItemClicked:  {";
-    std::cerr << idStr.toUtf8().constData();
-    std::cerr << "}\n";
-    
     int id = std::stoi(std::string(idStr.toUtf8().constData()));
     
     int itemIndex = -1;
     for(std::pair<int, MultiResult> result : resultSet_) {
-       std::cerr << "HERE: {";
-       std::cerr << result.second.getName().toUtf8().constData() << "}\n";
-       
        itemIndex = result.first;
        if(result.first == id) {
            break;
        }
     }
-    
-   std::cerr << "END AND RENDER ";
-   std::cerr << " i = " << itemIndex << "\n";
              
    if(itemIndex >= 0) {
         resultSet_[itemIndex].setSelected(!resultSet_[itemIndex].isSelected());

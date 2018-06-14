@@ -124,7 +124,7 @@ class toMultiResultTableView : public QListView
     
     private:
         
-        std::map<int, MultiResult> resultSet_;
+        static std::map<int, MultiResult> resultSet_;
         bool checkMode_;
         
         MultiResultListModel* model_;

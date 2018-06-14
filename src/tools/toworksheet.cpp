@@ -403,8 +403,6 @@ void toWorksheet::setup(bool autoLoad)
     QToolBar *workToolbar = Utils::toAllocBar(this, tr("SQL worksheet"));
     layout()->addWidget(workToolbar);
 
-    std::cerr << "setup(...)\n";
-
     workToolbar->addWidget(executeActMultiButton);
     workToolbar->addAction(executeStepAct);
     workToolbar->addAction(executeAllAct);
@@ -703,8 +701,6 @@ void toWorksheet::slotWindowActivated(toToolWidget *widget)
         {
             ToolMenu = new QMenu(tr("Edit&or"), this);
 
-            std::cerr << "slotWindowActivated\n";
-
             ToolMenu->addAction(executeStepAct);
             ToolMenu->addAction(executeAllAct);
             ToolMenu->addAction(stopAct);
@@ -942,10 +938,25 @@ void toWorksheet::closeEvent(QCloseEvent *event)
     s.setValue("EditSplitterSizes1", EditSplitter->sizes()[1]);
     s.endGroup();
 
-    if (slotClose())
+    if (slotClose()) {
         event->accept();
-    else
+        const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+        int currentPosition = -1;
+        for(int i=0; i<openWorksheetsCount; ++i) {
+            if(toWorksheet::openWorksheets[i] == this) {
+                currentPosition = i;
+                break;
+            }
+        }
+
+        if(currentPosition > -1) {
+            toWorksheet::openWorksheets.erase(
+                toWorksheet::openWorksheets.begin() + currentPosition
+            );
+        }
+    } else {
         event->ignore();
+    }
 }
 
 void toWorksheet::focusInEvent(QFocusEvent *e)
@@ -1192,7 +1203,6 @@ void toWorksheet::queryMultiSelected(std::vector<int> connections, bool separate
     const int connectionsCount = connections.size();
     
     for(int i=0; i<connectionsCount; ++i) {
-        std::cerr << "RUN " << connections[i] << "\n";
         QString name = toWorksheet::openWorksheets[connections[i]]->getCaption();
         
         MultiResult mr;
