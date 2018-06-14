@@ -112,14 +112,16 @@ bool MultiResult::isSelected() const {
     return selected_;
 }
 
-std::map<int, MultiResult> toMultiResultTableView::resultSet_;
-
 MultiResultListModel::MultiResultListModel(const std::vector<MultiResult>& results, QObject *parent) : QAbstractListModel(parent) {
     results_ = results;
 }
 
 int MultiResultListModel::rowCount(const QModelIndex& parent) const {
     return results_.size();
+}
+
+void MultiResultListModel::setCheckMode(bool mode) {
+    checkMode_ = mode;
 }
 
 QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
@@ -160,29 +162,62 @@ QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
         }
         return QVariant(Qt::Unchecked);
     } else if(role == Qt::UserRole) {
-        return QVariant(results_.at(index.row()).getName());
+        return QVariant(
+            QString(
+                std::to_string(
+                    index.row()
+                ).c_str()
+            )
+        );
     } else {
         return QVariant();
     }
 }
 
+std::vector<toMultiResultTableView*> toMultiResultTableView::views_;
+
+void toMultiResultTableView::refreshModel() {
+    
+   const int len = views_.size();
+   for(int i=0; i<len; ++i) {
+       if(views_[i] != NULL) {
+           std::vector<MultiResult> results;
+           for(std::pair<int, MultiResult> result : views_[i]->resultSet_) {
+              MultiResult mr = result.second;
+              results.push_back(mr);
+           }
+           
+           views_[i]->model_ = new MultiResultListModel(results);
+           views_[i]->model_->setCheckMode(views_[i]->checkMode_);
+           views_[i]->setModel(views_[i]->model_);
+       }
+   }
+}
+
 toMultiResultTableView::toMultiResultTableView(QWidget *parent, bool checkMode) : QListView(parent) {
     
+    views_.push_back(this);
+
     checkMode_ = checkMode;
+    model_ = NULL;
     
-    std::vector<MultiResult> results;
-    MultiResultListModel* model = new MultiResultListModel(results);
-    setModel(model);
+    refreshModel();
     
     connect(this, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
 }
 
+toMultiResultTableView::~toMultiResultTableView() {
+    views_.erase(std::remove(views_.begin(), views_.end(), this), views_.end());
+}
+
 void toMultiResultTableView::slotItemClicked(QModelIndex item) {
-    QString name = item.data(Qt::UserRole).value<QString>();
+    QString idStr = item.data(Qt::UserRole).value<QString>();
     
     std::cerr << "slotItemClicked:  {";
-    std::cerr << name.toUtf8().constData();
+    std::cerr << idStr.toUtf8().constData();
     std::cerr << "}\n";
+    
+    int id = std::stoi(std::string(idStr.toUtf8().constData()));
     
     int itemIndex = -1;
     for(std::pair<int, MultiResult> result : resultSet_) {
@@ -190,7 +225,7 @@ void toMultiResultTableView::slotItemClicked(QModelIndex item) {
        std::cerr << result.second.getName().toUtf8().constData() << "}\n";
        
        itemIndex = result.first;
-       if(result.second.getName() == name) {
+       if(result.first == id) {
            break;
        }
     }
@@ -202,15 +237,8 @@ void toMultiResultTableView::slotItemClicked(QModelIndex item) {
         resultSet_[itemIndex].setSelected(!resultSet_[itemIndex].isSelected());
    }
              
-   std::vector<MultiResult> results;
-   for(std::pair<int, MultiResult> result : resultSet_) {
-      MultiResult mr = result.second;
-      std::cerr << "[CLICKED] ITEM " << result.first << " STATE " << result.second.isSelected() << "\n";
-      results.push_back(mr);
-   }
-    
-   MultiResultListModel* model = new MultiResultListModel(results);
-   setModel(model);
+   refreshModel();
+   
 }
 
 std::map<int, MultiResult> toMultiResultTableView::getConnections() const {
@@ -233,24 +261,13 @@ void toMultiResultTableView::updateStatus(int id, MultiResult result) {
         resultSet_[id] = result;
     }
     
-    std::vector<MultiResult> results;
-    for(std::pair<int, MultiResult> result : resultSet_) {
-       MultiResult mr = result.second;
-       std::cerr << "[UPDATE STATUS] ITEM " << result.first << " STATE " << result.second.isSelected() << "\n";
-       results.push_back(mr);
-    }
-    
-    MultiResultListModel* model = new MultiResultListModel(results);
-    setModel(model);
+    refreshModel();
     
 }
 
 void toMultiResultTableView::clearStatus() {
     resultSet_.clear();
-    std::vector<MultiResult> results;
-    MultiResultListModel* model = new MultiResultListModel(results);
-    setModel(model);
-    
+    refreshModel();
 }
 
 /*

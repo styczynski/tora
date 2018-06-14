@@ -235,8 +235,6 @@ static QString toSQLToAddress(toConnection &conn, const QString &sql)
 }
 #endif
 
-toMultiResultTableView* toWorksheet::MultiResultView = nullptr;
-
 void toWorksheet::viewResources(void)
 {
     try
@@ -509,9 +507,7 @@ void toWorksheet::setup(bool autoLoad)
 
     ResultTab = new toTabWidget(EditSplitter);
 
-    if(MultiResultView == nullptr) {
-        MultiResultView = new toMultiResultTableView(ResultTab);
-    }
+    MultiResultView = new toMultiResultTableView(ResultTab);
     ResultTab->addTab(MultiResultView, tr("&Executions"));
 
     Current = Result = new toResultTableView(false, true, ResultTab, "ResultTab");
@@ -912,6 +908,23 @@ bool toWorksheet::slotClose()
         return false;
 }
 
+toWorksheet::~toWorksheet() {
+    const int openWorksheetsCount = toWorksheet::openWorksheets.size();
+    int currentPosition = -1;
+    for(int i=0; i<openWorksheetsCount; ++i) {
+        if(toWorksheet::openWorksheets[i] == this) {
+            currentPosition = i;
+            break;
+        }
+    }
+
+    if(currentPosition > -1) {
+        toWorksheet::openWorksheets.erase(
+            toWorksheet::openWorksheets.begin() + currentPosition
+        );
+    }
+}
+
 void toWorksheet::slotSchemaChanged(const QString &)
 {
     if (LockedConnection)
@@ -979,10 +992,6 @@ void toWorksheet::handle(QObject *obj, QMenu *menu)
     {
         //TODO CopyAsSQLValue
     }
-}
-
-toWorksheet::~toWorksheet()
-{
 }
 
 bool toWorksheet::hasTransaction() const

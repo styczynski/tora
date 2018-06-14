@@ -108,10 +108,13 @@ class MultiResultListModel : public QAbstractListModel
         explicit MultiResultListModel(const std::vector<MultiResult>& results, QObject* parent = 0);
         int rowCount(const QModelIndex &parent = QModelIndex()) const;
         QVariant data(const QModelIndex &index, int role) const;
+        void setCheckMode(bool mode);
+        
         
     private:
         
         std::vector<MultiResult> results_;
+        bool checkMode_;
 
 };
 
@@ -120,14 +123,22 @@ class toMultiResultTableView : public QListView
     Q_OBJECT;
     
     private:
-        static std::map<int, MultiResult> resultSet_;
+        
+        std::map<int, MultiResult> resultSet_;
         bool checkMode_;
+        
+        MultiResultListModel* model_;
+        static std::vector<toMultiResultTableView*> views_;
+    
+        void refreshModel();
     
     public:
         toMultiResultTableView(QWidget *parent = nullptr, bool checkMode=false);
         void updateStatus(int id, MultiResult resul);
         void clearStatus();
         std::map<int, MultiResult> getConnections() const;
+        
+        virtual ~toMultiResultTableView();
         
     protected slots:
         void slotItemClicked(QModelIndex item);

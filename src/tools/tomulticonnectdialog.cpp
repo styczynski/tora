@@ -92,8 +92,8 @@ std::vector<int> toMultiConnectionChooserDialog::getSelectedConnections() {
     std::vector<int> selectedConnections;
     
     for(std::pair<int, MultiResult> result : list->getConnections()) {
-        if(result.isSelected()) {
-            selectedConnections.push_back(result.first)'
+        if(result.second.isSelected()) {
+            selectedConnections.push_back(result.first);
         }
     }
     

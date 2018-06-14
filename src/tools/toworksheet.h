@@ -214,7 +214,7 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         
         QString getCaption(void);
 
-        static toMultiResultTableView *MultiResultView;
+        toMultiResultTableView *MultiResultView;
 
         // Overridden from toContextMenuHandler
         void handle(QObject *obj, QMenu *menu) override;
