@@ -5,7 +5,7 @@
 As a project for Warsaw University course I made an extension to Tora tool interface.<br>
 The main purpose of this tool is to allow Tora users to execute statements in multiple connections as this is very useful feature not offered by standard Tora distribution.
 
-See more details here: [MultiTool README](https://github.com/styczynski/tora/edit/master/README.MULTITOOL.md)
+See more details here: [MultiTool README](https://github.com/styczynski/tora/blob/master/README.MULTITOOL.md)
 
 # About Tora
 
