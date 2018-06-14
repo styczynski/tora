@@ -392,9 +392,7 @@ void toWorksheet::setup(bool autoLoad)
     }
 
     if(currentPosition > -1) {
-        toWorksheet::openWorksheets.erase(
-            toWorksheet::openWorksheets.begin() + currentPosition
-        );
+        toWorksheet::openWorksheets[currentPosition] = NULL;
     }
     
     currentPosition = toWorksheet::openWorksheets.size();
@@ -891,9 +889,7 @@ bool toWorksheet::slotClose()
             }
 
             if(currentPosition > -1) {
-                toWorksheet::openWorksheets.erase(
-                    toWorksheet::openWorksheets.begin() + currentPosition
-                );
+                toWorksheet::openWorksheets[currentPosition] = NULL;
             }
 
             return true;
@@ -915,9 +911,7 @@ toWorksheet::~toWorksheet() {
     }
 
     if(currentPosition > -1) {
-        toWorksheet::openWorksheets.erase(
-            toWorksheet::openWorksheets.begin() + currentPosition
-        );
+        toWorksheet::openWorksheets[currentPosition] = NULL;
     }
 }
 
@@ -950,9 +944,7 @@ void toWorksheet::closeEvent(QCloseEvent *event)
         }
 
         if(currentPosition > -1) {
-            toWorksheet::openWorksheets.erase(
-                toWorksheet::openWorksheets.begin() + currentPosition
-            );
+            toWorksheet::openWorksheets[currentPosition] = NULL;
         }
     } else {
         event->ignore();
@@ -1203,28 +1195,32 @@ void toWorksheet::queryMultiSelected(std::vector<int> connections, bool separate
     const int connectionsCount = connections.size();
     
     for(int i=0; i<connectionsCount; ++i) {
-        QString name = toWorksheet::openWorksheets[connections[i]]->getCaption();
-        
-        MultiResult mr;
-        mr.setStatusExecuting();
-        mr.setName(name);
-        
-        MultiResultView->updateStatus(connections[i], mr);
+        if(toWorksheet::openWorksheets[connections[i]] != NULL) {
+            QString name = toWorksheet::openWorksheets[connections[i]]->getCaption();
+            
+            MultiResult mr;
+            mr.setStatusExecuting();
+            mr.setName(name);
+            
+            MultiResultView->updateStatus(connections[i], mr);
+        }
     }
   
     for(int i=0; i<connectionsCount; ++i) {
-        MultiResult mr;
-        mr.setStatusDone();
-        
-        QString name = toWorksheet::openWorksheets[connections[i]]->getCaption();
-        mr.setName(name);
-        
-        if(separateMode) {
-            toWorksheet::openWorksheets[connections[i]]->slotExecute();
-            MultiResultView->updateStatus(connections[i], mr);
-        } else {
-            toWorksheet::openWorksheets[connections[i]]->query(statement, type, selectMode);
-            MultiResultView->updateStatus(connections[i], mr);
+        if(toWorksheet::openWorksheets[connections[i]] != NULL) {
+            MultiResult mr;
+            mr.setStatusDone();
+            
+            QString name = toWorksheet::openWorksheets[connections[i]]->getCaption();
+            mr.setName(name);
+            
+            if(separateMode) {
+                toWorksheet::openWorksheets[connections[i]]->slotExecute();
+                MultiResultView->updateStatus(connections[i], mr);
+            } else {
+                toWorksheet::openWorksheets[connections[i]]->query(statement, type, selectMode);
+                MultiResultView->updateStatus(connections[i], mr);
+            }
         }
     }
 }
