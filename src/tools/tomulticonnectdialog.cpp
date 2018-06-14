@@ -65,7 +65,7 @@
 #include <QListView>
 
 toMultiConnectionChooserDialog::toMultiConnectionChooserDialog(QWidget *parent) : QDialog(parent) {
-    list = new toMultiResultTableView(this);
+    list = new toMultiResultTableView(this, true);
     
     confirmButton = new QPushButton(tr("&Ok"));
     confirmButton->setDefault(true);
@@ -73,12 +73,29 @@ toMultiConnectionChooserDialog::toMultiConnectionChooserDialog(QWidget *parent) 
     connect(confirmButton, SIGNAL(clicked()), this, SLOT(confirmClicked()));
 
     mainLayout = new QHBoxLayout;
+    
+    mainLayout->addWidget(confirmButton);
     mainLayout->addWidget(list);
      
     setLayout(mainLayout);
     setWindowTitle(tr("Choose current connections"));
+    
+    MultiResult mr;
+    list->updateStatus(-1, mr);
 }
 
 void toMultiConnectionChooserDialog::confirmClicked(void) {
     hide();
+}
+
+std::vector<int> toMultiConnectionChooserDialog::getSelectedConnections() {
+    std::vector<int> selectedConnections;
+    
+    for(std::pair<int, MultiResult> result : list->getConnections()) {
+        if(result.isSelected()) {
+            selectedConnections.push_back(result.first)'
+        }
+    }
+    
+    return selectedConnections;
 }

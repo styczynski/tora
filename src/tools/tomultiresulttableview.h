@@ -81,12 +81,21 @@ class MultiResult
             return !(name_ == mr.name_ && status_ == mr.status_);
         }
         
+        inline int getExecutionTime() const {
+            return execution_time_;
+        }
+        
+        inline void setExecutionTime(int time) {
+            execution_time_ = time;
+        }
+        
     private:
     
         QString name_;
         bool status_;
         bool selected_;
         std::chrono::high_resolution_clock::time_point creation_time_;
+        int execution_time_;
 };
 
 class MultiResultListModel : public QAbstractListModel
@@ -112,9 +121,10 @@ class toMultiResultTableView : public QListView
     
     private:
         static std::map<int, MultiResult> resultSet_;
+        bool checkMode_;
     
     public:
-        toMultiResultTableView(QWidget *parent = nullptr);
+        toMultiResultTableView(QWidget *parent = nullptr, bool checkMode=false);
         void updateStatus(int id, MultiResult resul);
         void clearStatus();
         std::map<int, MultiResult> getConnections() const;

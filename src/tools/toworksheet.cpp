@@ -1168,36 +1168,44 @@ void toWorksheet::queryMulti(bool separateMode, toSyntaxAnalyzer::statement cons
 {
     
     const int openWorksheetsCount = toWorksheet::openWorksheets.size();
-    
-    std::cerr << "HELLO QURY MULTI WAS TRIGGERED!\n";
-    std::cerr.flush();
+    std::vector<int> connections;
     
     for(int i=0; i<openWorksheetsCount; ++i) {
-        QString name = toWorksheet::openWorksheets[i]->getCaption();
+        connections.push_back(i);
+    }
+        
+    queryMultiSelected(connections, separateMode, statement, type, selectMode);
+}
+
+void toWorksheet::queryMultiSelected(std::vector<int> connections, bool separateMode, toSyntaxAnalyzer::statement const& statement, execTypeEnum type, selectionModeEnum selectMode)
+{
+    
+    const int connectionsCount = connections.size();
+    
+    for(int i=0; i<connectionsCount; ++i) {
+        std::cerr << "RUN " << connections[i] << "\n";
+        QString name = toWorksheet::openWorksheets[connections[i]]->getCaption();
         
         MultiResult mr;
         mr.setStatusExecuting();
         mr.setName(name);
         
-        MultiResultView->updateStatus(i, mr);
+        MultiResultView->updateStatus(connections[i], mr);
     }
   
-    for(int i=0; i<openWorksheetsCount; ++i) {
-        std::cerr << "OPEN WORKSHEET " << i << "\n";
-        std::cerr.flush();
-        
+    for(int i=0; i<connectionsCount; ++i) {
         MultiResult mr;
         mr.setStatusDone();
         
-        QString name = toWorksheet::openWorksheets[i]->getCaption();
+        QString name = toWorksheet::openWorksheets[connections[i]]->getCaption();
         mr.setName(name);
         
         if(separateMode) {
-            toWorksheet::openWorksheets[i]->slotExecute();
-            MultiResultView->updateStatus(i, mr);
+            toWorksheet::openWorksheets[connections[i]]->slotExecute();
+            MultiResultView->updateStatus(connections[i], mr);
         } else {
-            toWorksheet::openWorksheets[i]->query(statement, type, selectMode);
-            MultiResultView->updateStatus(i, mr);
+            toWorksheet::openWorksheets[connections[i]]->query(statement, type, selectMode);
+            MultiResultView->updateStatus(connections[i], mr);
         }
     }
 }
@@ -1624,8 +1632,11 @@ void toWorksheet::slotExecute()
 
 void toWorksheet::slotExecuteMultiSelected()
 {
-    toMultiConnectionChooserDialog chooserDialog;
-    chooserDialog.show();
+    toMultiConnectionChooserDialog* chooserDialog = new toMultiConnectionChooserDialog(this);
+    chooserDialog->exec();
+    
+    toSyntaxAnalyzer::statement stat = currentStatement();
+    queryMultiSelected(chooserDialog->getSelectedConnections(), false, stat, Normal);
 }
 
 void toWorksheet::slotExecuteMultiBroadcast()

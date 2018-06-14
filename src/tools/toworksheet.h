@@ -241,7 +241,9 @@ class toWorksheet : public toToolWidget, public toContextMenuHandler
         void query(toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
         void querySelection(execTypeEnum type);
         void queryMulti(bool separateMode, toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
+        void queryMultiSelected(std::vector<int> connections, bool separateMode, toSyntaxAnalyzer::statement const&, execTypeEnum type, selectionModeEnum = SelectQueryEnum);
 
+        
         bool checkSave();
         void saveDefaults(void);
         void setup(bool autoLoad);

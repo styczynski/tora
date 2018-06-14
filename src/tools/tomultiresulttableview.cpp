@@ -73,6 +73,7 @@ MultiResult::MultiResult() {
     status_ = false;
     selected_ = false;
     creation_time_ = std::chrono::high_resolution_clock::now();
+    execution_time_ = -1;
 }
 
 std::chrono::high_resolution_clock::time_point MultiResult::getCreationTime() const {
@@ -133,15 +134,15 @@ QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
         
         if(results_.at(index.row()).isDone()) {
            auto now = std::chrono::high_resolution_clock::now();
-           label +=
-             QString(" - Ready (started ")
-             + QString(
-                 std::to_string(
-                    std::chrono::duration_cast<std::chrono::nanoseconds>(now - results_.at(index.row()).getCreationTime()).count()
-                    / 1000
-                 ).c_str()
-             )
-             + " ms ago)";
+           label += QString(" - Ready ");
+           
+           if(results_.at(index.row()).getExecutionTime() > 0) {
+               label += QString("(took ") + QString(
+                     std::to_string(
+                        results_.at(index.row()).getExecutionTime()
+                     ).c_str()
+                 ) + " ms)";
+           }
         } else {
            label += " - Running ";
         }
@@ -153,10 +154,11 @@ QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
         }
         return QPixmap(const_cast<const char**>(clock_xpm));
     } else if(role == Qt::CheckStateRole) {
-        if(!results_.at(index.row()).isSelected()) {
-            return QVariant(Qt::Unchecked);
+        if(!checkMode_) return QVariant();
+        if(results_.at(index.row()).isSelected()) {
+            return QVariant(Qt::Checked);
         }
-        return QVariant(Qt::Checked);
+        return QVariant(Qt::Unchecked);
     } else if(role == Qt::UserRole) {
         return QVariant(results_.at(index.row()).getName());
     } else {
@@ -164,36 +166,51 @@ QVariant MultiResultListModel::data(const QModelIndex& index, int role) const {
     }
 }
 
-toMultiResultTableView::toMultiResultTableView(QWidget *parent) : QListView(parent) {
+toMultiResultTableView::toMultiResultTableView(QWidget *parent, bool checkMode) : QListView(parent) {
+    
+    checkMode_ = checkMode;
     
     std::vector<MultiResult> results;
     MultiResultListModel* model = new MultiResultListModel(results);
     setModel(model);
     
-    connect(model, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
+    connect(this, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
 }
 
 void toMultiResultTableView::slotItemClicked(QModelIndex item) {
     QString name = item.data(Qt::UserRole).value<QString>();
+    
+    std::cerr << "slotItemClicked:  {";
+    std::cerr << name.toUtf8().constData();
+    std::cerr << "}\n";
+    
+    int itemIndex = -1;
     for(std::pair<int, MultiResult> result : resultSet_) {
+       std::cerr << "HERE: {";
+       std::cerr << result.second.getName().toUtf8().constData() << "}\n";
+       
+       itemIndex = result.first;
        if(result.second.getName() == name) {
-           
-           result.second.setSelected(!result.second.isSelected());
-           
-           std::vector<MultiResult> results;
-           for(std::pair<int, MultiResult> result : resultSet_) {
-              MultiResult mr = result.second;
-              results.push_back(mr);
-           }
-            
-           MultiResultListModel* model = new MultiResultListModel(results);
-           setModel(model);
-            
-           connect(model, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
-           
-           return;
+           break;
        }
     }
+    
+   std::cerr << "END AND RENDER ";
+   std::cerr << " i = " << itemIndex << "\n";
+             
+   if(itemIndex >= 0) {
+        resultSet_[itemIndex].setSelected(!resultSet_[itemIndex].isSelected());
+   }
+             
+   std::vector<MultiResult> results;
+   for(std::pair<int, MultiResult> result : resultSet_) {
+      MultiResult mr = result.second;
+      std::cerr << "[CLICKED] ITEM " << result.first << " STATE " << result.second.isSelected() << "\n";
+      results.push_back(mr);
+   }
+    
+   MultiResultListModel* model = new MultiResultListModel(results);
+   setModel(model);
 }
 
 std::map<int, MultiResult> toMultiResultTableView::getConnections() const {
@@ -202,21 +219,30 @@ std::map<int, MultiResult> toMultiResultTableView::getConnections() const {
 
 void toMultiResultTableView::updateStatus(int id, MultiResult result) {
     
-    if(resultSet_[id] != result) {
-        result.resetCreationTime();
+    if(id != -1) {
+        if(!resultSet_[id].isDone() && result.isDone()) {
+            result.setExecutionTime(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(result.getCreationTime() - resultSet_[id].getCreationTime()).count()
+                / 1000000
+            );
+        }
+        
+        bool selectedStateBefore = resultSet_[id].isSelected();
+        result.setSelected(selectedStateBefore);
+        
         resultSet_[id] = result;
     }
     
     std::vector<MultiResult> results;
     for(std::pair<int, MultiResult> result : resultSet_) {
        MultiResult mr = result.second;
+       std::cerr << "[UPDATE STATUS] ITEM " << result.first << " STATE " << result.second.isSelected() << "\n";
        results.push_back(mr);
     }
     
     MultiResultListModel* model = new MultiResultListModel(results);
     setModel(model);
     
-    connect(model, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
 }
 
 void toMultiResultTableView::clearStatus() {
@@ -225,7 +251,6 @@ void toMultiResultTableView::clearStatus() {
     MultiResultListModel* model = new MultiResultListModel(results);
     setModel(model);
     
-    connect(model, SIGNAL(clicked(const QModelIndex)), this, SLOT(slotItemClicked(QModelIndex)));
 }
 
 /*

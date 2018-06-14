@@ -75,5 +75,6 @@ class toMultiConnectionChooserDialog : public QDialog
     
     public:
         toMultiConnectionChooserDialog(QWidget *parent = nullptr);
+        std::vector<int> getSelectedConnections();
 };
 
