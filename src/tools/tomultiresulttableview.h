@@ -144,19 +144,3 @@ class toMultiResultTableView : public QListView
         void slotItemClicked(QModelIndex item);
         
 };
-
-/*class toMultiResultTableView : public QGroupBox
-{
-    Q_OBJECT;
-    
-    private:
-        toMultiResultList* list;
-    
-    private slots:
-        void slotClearAction(void);
-    
-    public:
-        toMultiResultTableView(QWidget *parent = nullptr);
-        void updateStatus(int id, MultiResult resul);
-        void clearStatus();
-};*/

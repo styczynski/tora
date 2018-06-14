@@ -260,38 +260,3 @@ void toMultiResultTableView::clearStatus() {
     resultSet_.clear();
     refreshModel();
 }
-
-/*
-toMultiResultTableView::toMultiResultTableView(QWidget *parent) : QGroupBox(parent) {
-    QHBoxLayout* layout = new QHBoxLayout;
-    *QMenuBar* menuBar = new QMenuBar;
-
-    QMenu* quickOptionsMenu = new QMenu(tr("&Quick options"), this);
-    
-    QAction* clearAction = new QAction(QPixmap(const_cast<const char**>(refresh_xpm)),
-                                 tr("Clear list"),
-                                 this);
-    
-    quickOptionsMenu->addAction(clearAction);
-    connect(clearAction, SIGNAL(triggered()), this, SLOT(slotClearAction()));
-    
-    menuBar->addMenu(quickOptionsMenu);
-    layout->setMenuBar(menuBar);*
-    
-    list = new toMultiResultTableView(this);
-    layout->addWidget(list);
-    
-    setLayout(layout);
-}
-
-void toMultiResultTableView::slotClearAction(void) {
-    clearStatus();
-}
-
-void toMultiResultTableView::updateStatus(int id, MultiResult result) {
-    list->updateStatus(id, result);
-}
-
-void toMultiResultTableView::clearStatus() {
-    list->clearStatus();
-}*/
